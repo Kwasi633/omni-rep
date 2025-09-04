@@ -3,7 +3,8 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bell, Search, Menu } from "lucide-react"
+import { Bell, Search, Menu, Wallet } from "lucide-react"
+import { useState } from "react"
 
 interface HeaderProps {
   sidebarOpen: boolean
@@ -11,6 +12,20 @@ interface HeaderProps {
 }
 
 export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
+  const [walletConnected, setWalletConnected] = useState(false)
+  const [walletAddress, setWalletAddress] = useState("")
+
+  const handleWalletConnect = () => {
+    if (walletConnected) {
+      setWalletConnected(false)
+      setWalletAddress("")
+    } else {
+      // Mock wallet connection
+      setWalletConnected(true)
+      setWalletAddress("0x1234...5678")
+    }
+  }
+
   return (
     <header className="fixed top-0 left-0 right-0 z-40 h-16 bg-gradient-to-r from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-xl border-b border-gray-700/50 shadow-lg shadow-teal-500/5">
       <div className="flex items-center justify-between h-full px-4">
@@ -44,6 +59,18 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            onClick={handleWalletConnect}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
+              walletConnected
+                ? "bg-gradient-to-r from-teal-500/20 to-purple-500/20 border border-teal-500/30 text-teal-300 hover:from-teal-500/30 hover:to-purple-500/30"
+                : "bg-gradient-to-r from-teal-500 to-purple-500 text-white hover:from-teal-600 hover:to-purple-600 shadow-lg shadow-teal-500/25"
+            }`}
+          >
+            <Wallet className="h-4 w-4" />
+            <span className="hidden sm:inline">{walletConnected ? walletAddress : "Connect Wallet"}</span>
+          </Button>
+
           <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white hover:bg-gray-800/50">
             <Bell className="h-5 w-5" />
           </Button>

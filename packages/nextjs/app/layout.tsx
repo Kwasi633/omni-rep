@@ -1,0 +1,31 @@
+/* eslint-disable prettier/prettier */
+import React from "react"
+import type { Metadata } from "next"
+import { GeistSans } from "geist/font/sans"
+import { GeistMono } from "geist/font/mono"
+import { Analytics } from "@vercel/analytics/react"
+import { Suspense } from "react"
+import "./globals.css"
+
+export const metadata: Metadata = {
+  title: "OmniRep - Decentralized Reputation Platform",
+  description: "Cross-chain, privacy-preserving reputation scores for the decentralized web",
+  generator: "v0.app",
+}
+
+import { ScaffoldEthAppWithProviders } from "@/components/ScaffoldEthAppWithProviders";
+
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="en" className="dark">
+      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
+        <ScaffoldEthAppWithProviders>
+          <Suspense fallback={null}>{children}</Suspense>
+        </ScaffoldEthAppWithProviders>
+        <Analytics />
+      </body>
+    </html>
+  );
+}

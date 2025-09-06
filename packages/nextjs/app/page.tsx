@@ -4,7 +4,6 @@
 import { useState } from "react"
 import type { TabId } from "@/types/dashboard"
 import { SIDEBAR_ITEMS } from "@/lib/constants"
-import { Header } from "@/components/layout/header"
 import { Sidebar } from "@/components/layout/sidebar"
 import { OverviewView } from "@/components/views/overview-view"
 import { ReputationView } from "@/components/views/reputation-view"
@@ -38,8 +37,6 @@ export default function OmniRepDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-
       <Sidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}

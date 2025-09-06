@@ -1,6 +1,7 @@
+/* eslint-disable prettier/prettier */
 import { QRCodeSVG } from "qrcode.react";
 import { Address as AddressType } from "viem";
-import { Address } from "~~/components/scaffold-eth";
+import { Address } from "@/components/scaffold-eth";
 
 type AddressQRCodeModalProps = {
   address: AddressType;

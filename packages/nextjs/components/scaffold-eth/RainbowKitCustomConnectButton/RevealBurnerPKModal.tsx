@@ -1,8 +1,9 @@
+/* eslint-disable prettier/prettier */
 import { useRef } from "react";
 import { rainbowkitBurnerWallet } from "burner-connector";
 import { ShieldExclamationIcon } from "@heroicons/react/24/outline";
-import { useCopyToClipboard } from "~~/hooks/scaffold-eth";
-import { getParsedError, notification } from "~~/utils/scaffold-eth";
+import { useCopyToClipboard } from "@/hooks/scaffold-eth";
+import { getParsedError, notification } from "@/utils/scaffold-eth";
 
 const BURNER_WALLET_PK_KEY = "burnerWallet.pk";
 

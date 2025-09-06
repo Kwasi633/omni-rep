@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 "use client"
 
 import type { SidebarItem, TabId } from "@/types/dashboard"

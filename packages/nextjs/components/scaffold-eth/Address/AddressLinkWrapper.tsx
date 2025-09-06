@@ -1,6 +1,7 @@
+/* eslint-disable prettier/prettier */
 import Link from "next/link";
 import { hardhat } from "viem/chains";
-import { useTargetNetwork } from "~~/hooks/scaffold-eth";
+import { useTargetNetwork } from "@/hooks/scaffold-eth";
 
 type AddressLinkWrapperProps = {
   children: React.ReactNode;

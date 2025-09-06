@@ -1,0 +1,39 @@
+.custom-connect-button-wrapper :where(.btn) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+.custom-connect-button-wrapper :where(.btn-primary) {
+  background-image: linear-gradient(to right, #14b8a6, #a855f7);
+  color: #fff;
+}
+/* For connected state */
+.custom-connect-button-wrapper:has(.min-h-0) :where(.btn) {
+  background-image: linear-gradient(to right, rgba(20,184,166,0.2), rgba(168,85,247,0.2));
+  border: 1px solid rgba(20,184,166,0.3);
+  color: #4fd1c5;
+}
+.custom-connect-button-wrapper:has(.min-h-0) :where(.btn):hover {
+  background-image: linear-gradient(to right, rgba(20,184,166,0.3), rgba(168,85,247,0.3));
+}
+}
+.custom-connect-button-wrapper :where(.btn):hover {
+  background-image: linear-gradient(to right, #0d9488, #7c3aed);
+}
+
+.custom-connect-button-wrapper :where(.btn-primary) {
+  background-image: linear-gradient(to right, #14b8a6, #a855f7);
+  color: #fff;
+}
+
+/* For connected state */
+.custom-connect-button-wrapper:has(.min-h-0) :where(.btn) {
+  background-image: linear-gradient(to right, rgba(20,184,166,0.2), rgba(168,85,247,0.2));
+  border: 1px solid rgba(20,184,166,0.3);
+  color: #4fd1c5;
+}
+.custom-connect-button-wrapper:has(.min-h-0) :where(.btn):hover {
+  background-image: linear-gradient(to right, rgba(20,184,166,0.3), rgba(168,85,247,0.3));
+}

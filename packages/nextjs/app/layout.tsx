@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import type React from "react"
+import React from "react"
 import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
@@ -13,17 +13,19 @@ export const metadata: Metadata = {
   generator: "v0.app",
 }
 
+import { ScaffoldEthAppWithProviders } from "@/components/ScaffoldEthAppWithProviders";
+
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="dark">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
-        <Suspense fallback={null}>{children}</Suspense>
+        <ScaffoldEthAppWithProviders>
+          <Suspense fallback={null}>{children}</Suspense>
+        </ScaffoldEthAppWithProviders>
         <Analytics />
       </body>
     </html>
-  )
+  );
 }

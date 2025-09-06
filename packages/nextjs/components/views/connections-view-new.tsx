@@ -62,15 +62,13 @@ export function ConnectionsView() {
   const [connectedPlatforms, setConnectedPlatforms] = useState<ConnectedPlatform[]>(defaultConnectedPlatforms);
   const [isConnectingGithub, setIsConnectingGithub] = useState(false);
   const [githubError, setGithubError] = useState<string | null>(null);
-  const [githubData, setGithubData] = useState<any>(null);
-  const [showGithubDetails, setShowGithubDetails] = useState(false);
 
   // Load connected platforms data
   const loadConnectedPlatforms = useCallback(() => {
     // Update GitHub status if connected
-    const githubDataStored = getStoredGitHubData();
+    const githubData = getStoredGitHubData();
     
-    if (githubDataStored && isGitHubConnected()) {
+    if (githubData && isGitHubConnected()) {
       // Deep clone the platforms array
       const updatedPlatforms = JSON.parse(JSON.stringify(defaultConnectedPlatforms));
       
@@ -78,12 +76,11 @@ export function ConnectionsView() {
       const githubPlatform = updatedPlatforms.find((p: ConnectedPlatform) => p.name === "GitHub");
       if (githubPlatform) {
         githubPlatform.status = "verified";
-        githubPlatform.score = Math.round(githubDataStored.activity.commits + githubDataStored.activity.contributions * 0.5);
-        githubPlatform.lastSync = new Date(githubDataStored.lastUpdated).toLocaleString();
+        githubPlatform.score = Math.round(githubData.activity.commits + githubData.activity.contributions * 0.5);
+        githubPlatform.lastSync = new Date(githubData.lastUpdated).toLocaleString();
       }
       
       setConnectedPlatforms(updatedPlatforms);
-      setGithubData(githubDataStored);
     }
   }, []);
 
@@ -99,13 +96,20 @@ export function ConnectionsView() {
     
     try {
       // Get username input with better validation
-      const githubUsername = prompt("Enter your GitHub username (e.g., 'octocat'):")?.trim();
+      const githubUsername = prompt("Enter your GitHub username:")?.trim();
       if (!githubUsername) {
         setIsConnectingGithub(false);
         return;
       }
 
-      // Connect to GitHub (the service will handle validation)
+      // Validate username format (basic check)
+      if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(githubUsername)) {
+        setGithubError("Invalid GitHub username format");
+        setIsConnectingGithub(false);
+        return;
+      }
+
+      // Connect to GitHub
       const result = await connectGitHub(githubUsername);
       
       if (result.success) {
@@ -146,8 +150,6 @@ export function ConnectionsView() {
       }
       
       setConnectedPlatforms(updatedPlatforms);
-      setGithubData(null);
-      setShowGithubDetails(false);
       setGithubError(null);
     }
   };
@@ -162,9 +164,9 @@ export function ConnectionsView() {
               variant="outline" 
               size="sm" 
               className="border-teal-600/30 text-teal-400 bg-teal-500/10 hover:bg-teal-500/20"
-              onClick={() => setShowGithubDetails(true)}
+              onClick={loadConnectedPlatforms}
             >
-              <IconCheckCircle className="h-3 w-3 mr-1" /> View Details
+              <IconCheckCircle className="h-3 w-3 mr-1" /> Connected
             </Button>
             <Button
               variant="outline"
@@ -236,67 +238,6 @@ export function ConnectionsView() {
             ✕
           </Button>
         </div>
-      )}
-
-      {/* GitHub Details Modal */}
-      {showGithubDetails && githubData && (
-        <Card className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-700/50">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-white flex items-center gap-2">
-                <IconGithub className="h-5 w-5 text-teal-400" />
-                GitHub Account Details
-              </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-400 hover:text-gray-300"
-                onClick={() => setShowGithubDetails(false)}
-              >
-                ✕
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-gray-800/30 p-4 rounded-lg">
-                <div className="text-gray-400 text-sm">Username</div>
-                <div className="text-white font-semibold">{githubData.username}</div>
-              </div>
-              <div className="bg-gray-800/30 p-4 rounded-lg">
-                <div className="text-gray-400 text-sm">Repositories</div>
-                <div className="text-white font-semibold">{githubData.activity.repositories}</div>
-              </div>
-              <div className="bg-gray-800/30 p-4 rounded-lg">
-                <div className="text-gray-400 text-sm">Total Stars</div>
-                <div className="text-white font-semibold">{githubData.activity.stars}</div>
-              </div>
-              <div className="bg-gray-800/30 p-4 rounded-lg">
-                <div className="text-gray-400 text-sm">Followers</div>
-                <div className="text-white font-semibold">{githubData.activity.followers}</div>
-              </div>
-              <div className="bg-gray-800/30 p-4 rounded-lg">
-                <div className="text-gray-400 text-sm">Commits</div>
-                <div className="text-white font-semibold">{githubData.activity.commits}</div>
-              </div>
-              <div className="bg-gray-800/30 p-4 rounded-lg">
-                <div className="text-gray-400 text-sm">Pull Requests</div>
-                <div className="text-white font-semibold">{githubData.activity.pullRequests}</div>
-              </div>
-              <div className="bg-gray-800/30 p-4 rounded-lg">
-                <div className="text-gray-400 text-sm">Issues</div>
-                <div className="text-white font-semibold">{githubData.activity.issues}</div>
-              </div>
-              <div className="bg-gray-800/30 p-4 rounded-lg">
-                <div className="text-gray-400 text-sm">Account Age (days)</div>
-                <div className="text-white font-semibold">{githubData.activity.accountAge}</div>
-              </div>
-            </div>
-            <div className="mt-4 text-gray-400 text-sm">
-              Last updated: {new Date(githubData.lastUpdated).toLocaleString()}
-            </div>
-          </CardContent>
-        </Card>
       )}
 
       {/* Connected Platforms */}
@@ -425,7 +366,7 @@ export function ConnectionsView() {
                   <p className="text-white font-medium">{setting.name}</p>
                   <p className="text-gray-400 text-sm">{setting.description}</p>
                 </div>
-                <Switch />
+                <Switch checked={setting.enabled} onCheckedChange={() => {}} />
               </div>
             ))}
           </div>

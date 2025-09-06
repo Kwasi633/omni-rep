@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { User, Download, Trash2, Save, Wallet } from "lucide-react";
 import { 
   getUserData, 
-  updateUserProfile, 
+  updateUserProfile,
   deleteUserData,
   exportUserData,
   CompleteUserData,

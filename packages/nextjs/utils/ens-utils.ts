@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { useEnsName, useEnsText, useEnsAvatar } from 'wagmi';
+import { useEnsName, useEnsAvatar, useEnsText } from 'wagmi';
 
 interface ENSProfile {
   name: string | null;
@@ -224,6 +224,31 @@ export function useENSIntegration() {
     }
   }, [ensService]);
 
+  // Connect existing ENS name
+  const connectExistingENS = useCallback((existingEnsName: string) => {
+    try {
+      if (!existingEnsName) {
+        throw new Error('No ENS name provided');
+      }
+      
+      // Validate ENS name format
+      if (!existingEnsName.includes('.eth')) {
+        existingEnsName += '.eth';
+      }
+      
+      // Save to state and localStorage
+      setEnsName(existingEnsName);
+      localStorage.setItem('omnirep_ens_name', existingEnsName);
+      console.log(`🔗 Connected existing ENS name: ${existingEnsName}`);
+      
+      return existingEnsName;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to connect ENS name';
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
+  }, []);
+
   // Clear ENS data
   const clearENS = useCallback(() => {
     setEnsName('');
@@ -242,6 +267,7 @@ export function useENSIntegration() {
     error,
     createUserSubname,
     resolveDIDFromENS,
+    connectExistingENS,
     clearENS,
     ensService
   };

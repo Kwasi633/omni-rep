@@ -1,20 +1,52 @@
 /* eslint-disable prettier/prettier */
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAccount } from "wagmi"
 import type { TabId } from "@/types/dashboard"
 import { SIDEBAR_ITEMS } from "@/lib/constants"
 import { Sidebar } from "@/components/layout/sidebar"
+import { Header } from "@/components/Header"
 import { OverviewView } from "@/components/views/overview-view"
-import { ReputationView } from "@/components/views/reputation-view"
+import ReputationView from "@/components/views/reputation-view"
 import { ConnectionsView } from "@/components/views/connections-view"
 import { GrantsView } from "@/components/views/grants-view"
 import { AnalyticsView } from "@/components/views/analytics-view"
 import { SettingsView } from "@/components/views/settings-view"
+import { hasCompletedOnboarding } from "@/utils/userData"
 
 export default function OmniRepDashboard() {
+  const router = useRouter()
+  const { address, isConnected } = useAccount()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeTab, setActiveTab] = useState<TabId>("overview")
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true)
+
+  // Check onboarding status when wallet connects
+  useEffect(() => {
+    if (isConnected && address) {
+      const hasOnboarded = hasCompletedOnboarding(address)
+      if (!hasOnboarded) {
+        // User hasn't completed onboarding, redirect to onboarding
+        router.push('/onboarding')
+        return
+      }
+    }
+    setIsCheckingOnboarding(false)
+  }, [address, isConnected, router])
+
+  // Show loading while checking onboarding status
+  if (isCheckingOnboarding) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto"></div>
+          <p className="text-gray-300">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   const renderActiveView = () => {
     switch (activeTab) {
@@ -37,6 +69,7 @@ export default function OmniRepDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       <Sidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}

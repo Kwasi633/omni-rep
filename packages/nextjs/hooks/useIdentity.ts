@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { generateDeterministicDID } from "@/utils/did-utils";
 import { useENSIntegration } from "@/utils/ens-utils";
-import { useWallet } from "@/contexts/WalletContext";
 
 /**
  * OmniRep Identity Hook
@@ -45,11 +44,7 @@ export interface IdentityState {
  * - Clear error handling and logging
  */
 export function useIdentity() {
-  const { address: wagmiAddress, isConnected } = useAccount();
-  const { address: walletAddress } = useWallet();
-  
-  // Use either the wagmi address or our custom wallet address
-  const address = wagmiAddress || walletAddress;
+  const { address, isConnected } = useAccount();
   
   const [state, setState] = useState<IdentityState>({
     did: null,

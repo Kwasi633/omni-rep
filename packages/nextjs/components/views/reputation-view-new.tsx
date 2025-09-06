@@ -1,198 +1,167 @@
 /* eslint-disable prettier/prettier */
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { OFF_CHAIN_ACTIVITIES, ON_CHAIN_ACTIVITIES } from "@/lib/constants";
-import { connectGitHub as connectGitHubAccount, getStoredGitHubData } from "@/services/github";
-import { ReputationData, getStoredReputationData, updateUserReputation } from "@/services/reputation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import {
-  Activity,
-  Award,
+  Shield,
+  Download,
+  Share,
   CheckCircle,
   Clock,
-  Copy,
-  Download,
-  ExternalLink,
-  Eye,
-  Github,
-  QrCode,
-  Share,
-  Shield,
   TrendingUp,
-  UserCheck,
-  Users,
-  Wallet,
+  Award,
+  Eye,
   X,
-} from "lucide-react";
-import {
-  Line,
-  LineChart,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { useAccount } from "wagmi";
+  Copy,
+  ExternalLink,
+  QrCode,
+  Github,
+  Wallet,
+  Users,
+  Activity,
+  UserCheck,
+} from "lucide-react"
+import dynamic from "next/dynamic"
+
+const RadarChart = dynamic(() => import("recharts").then(mod => mod.RadarChart), { ssr: false })
+const PolarGrid = dynamic(() => import("recharts").then(mod => mod.PolarGrid), { ssr: false })
+const PolarAngleAxis = dynamic(() => import("recharts").then(mod => mod.PolarAngleAxis), { ssr: false })
+const PolarRadiusAxis = dynamic(() => import("recharts").then(mod => mod.PolarRadiusAxis), { ssr: false })
+const Radar = dynamic(() => import("recharts").then(mod => mod.Radar), { ssr: false })
+const ResponsiveContainer = dynamic(() => import("recharts").then(mod => mod.ResponsiveContainer), { ssr: false })
+const LineChart = dynamic(() =>
+  import("recharts").then(mod => ({ default: mod.LineChart })), { ssr: false }
+)
+const Line = dynamic(() => import("recharts").then(mod => mod.Line), { ssr: false })
+const XAxis = dynamic(() => import("recharts").then(mod => mod.XAxis), { ssr: false })
+const YAxis = dynamic(() => import("recharts").then(mod => mod.YAxis), { ssr: false })
+import { ON_CHAIN_ACTIVITIES, OFF_CHAIN_ACTIVITIES } from "@/lib/constants"
+import { useState, useEffect } from "react"
+import { useAccount } from "wagmi"
+import { getStoredReputationData, updateUserReputation, ReputationData } from "@/services/reputation"
+import { gitHubService, getStoredGitHubData } from "@/services/github"
 
 export default function ReputationView() {
-  const { address } = useAccount();
-  const [reputationData, setReputationData] = useState<ReputationData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [showCredentialPreview, setShowCredentialPreview] = useState(false);
-  const [credentialType, setCredentialType] = useState<"preview" | "share" | "export">("preview");
-  const [isConnectingGitHub, setIsConnectingGitHub] = useState(false);
-  const [githubConnected, setGithubConnected] = useState(false);
-
-  // Check if GitHub is already connected
-  useEffect(() => {
-    const githubData = getStoredGitHubData();
-    setGithubConnected(!!githubData);
-  }, []);
+  const { address } = useAccount()
+  const [reputationData, setReputationData] = useState<ReputationData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [showCredentialPreview, setShowCredentialPreview] = useState(false)
+  const [credentialType, setCredentialType] = useState<"preview" | "share" | "export">("preview")
 
   // Load reputation data on component mount
   useEffect(() => {
     const loadReputationData = async () => {
-      setIsLoading(true);
-
-      let data = getStoredReputationData();
-
-      // If no data exists or it's stale (older than 30 minutes), generate new data
-      if (!data || Date.now() - data.lastUpdated > 1800000) {
+      setIsLoading(true)
+      
+      let data = getStoredReputationData()
+      
+      // If no data exists or it's stale (older than 1 hour), generate new data
+      if (!data || (Date.now() - data.lastUpdated > 3600000)) {
         if (address) {
-          console.log('Generating new reputation data for address:', address);
-          data = await updateUserReputation(address);
+          data = await updateUserReputation(address)
         }
-      } else {
-        console.log('Using cached reputation data');
       }
+      
+      setReputationData(data)
+      setIsLoading(false)
+    }
 
-      setReputationData(data);
-      setIsLoading(false);
-    };
-
-    loadReputationData();
-  }, [address]);
+    loadReputationData()
+  }, [address])
 
   const handleRefreshReputation = async () => {
-    if (!address) return;
-
-    setIsUpdating(true);
+    if (!address) return
+    
+    setIsUpdating(true)
     try {
-      console.log('Refreshing reputation data...');
-      const data = await updateUserReputation(address);
-      setReputationData(data);
-      console.log('Reputation data updated successfully');
+      const data = await updateUserReputation(address)
+      setReputationData(data)
     } catch (error) {
-      console.error("Failed to update reputation:", error);
-      alert("Failed to update reputation. Please try again.");
+      console.error('Failed to update reputation:', error)
     }
-    setIsUpdating(false);
-  };
+    setIsUpdating(false)
+  }
 
   const connectGitHub = async () => {
-    setIsConnectingGitHub(true);
     try {
-      // Use the standalone function instead of the class method
-      const githubUsername = prompt("Please enter your GitHub username");
-      if (!githubUsername) {
-        setIsConnectingGitHub(false);
-        return;
-      }
-      
-      console.log('Connecting to GitHub for user:', githubUsername);
-      const result = await connectGitHubAccount(githubUsername);
-      
-      if (result.success) {
-        setGithubConnected(true);
-        alert(`Successfully connected to GitHub account: ${githubUsername}`);
-        
-        // Refresh reputation data after connecting GitHub
-        if (address) {
-          await handleRefreshReputation();
-        }
-      } else {
-        alert(`Failed to connect GitHub: ${result.error}`);
+      await gitHubService.connect()
+      // Refresh reputation data after connecting GitHub
+      if (address) {
+        await handleRefreshReputation()
       }
     } catch (error) {
-      console.error("Failed to connect GitHub:", error);
-      alert("Failed to connect to GitHub. Please check the username and try again.");
+      console.error('Failed to connect GitHub:', error)
     }
-    setIsConnectingGitHub(false);
-  };
+  }
 
   // Convert reputation data to chart format
   const getScoreBreakdown = () => {
-    if (!reputationData) return [];
-
-    const components = reputationData.components;
+    if (!reputationData) return []
+    
+    const components = reputationData.components
     return [
-      {
-        category: "Wallet",
-        current: components.walletScore,
-        potential: 100,
+      { 
+        category: "Wallet", 
+        current: components.walletScore, 
+        potential: 100, 
         color: "#3B82F6",
-        icon: Wallet,
+        icon: Wallet
       },
-      {
-        category: "GitHub",
-        current: components.githubScore,
-        potential: 100,
+      { 
+        category: "GitHub", 
+        current: components.githubScore, 
+        potential: 100, 
         color: "#14B8A6",
-        icon: Github,
+        icon: Github
       },
-      {
-        category: "Social",
-        current: components.socialScore,
-        potential: 100,
+      { 
+        category: "Social", 
+        current: components.socialScore, 
+        potential: 100, 
         color: "#8B5CF6",
-        icon: Users,
+        icon: Users
       },
-      {
-        category: "Identity",
-        current: components.identityScore,
-        potential: 100,
+      { 
+        category: "Identity", 
+        current: components.identityScore, 
+        potential: 100, 
         color: "#10B981",
-        icon: UserCheck,
+        icon: UserCheck
       },
-      {
-        category: "Activity",
-        current: components.activityScore,
-        potential: 100,
+      { 
+        category: "Activity", 
+        current: components.activityScore, 
+        potential: 100, 
         color: "#F59E0B",
-        icon: Activity,
+        icon: Activity
       },
-      {
-        category: "Security",
-        current: components.securityScore,
-        potential: 100,
+      { 
+        category: "Security", 
+        current: components.securityScore, 
+        potential: 100, 
         color: "#EF4444",
-        icon: Shield,
+        icon: Shield
       },
-    ];
-  };
+    ]
+  }
 
   const getRadarData = () => {
-    if (!reputationData) return [];
-
-    const components = reputationData.components;
+    if (!reputationData) return []
+    
+    const components = reputationData.components
     return [
-      { subject: "Wallet", A: components.walletScore, fullMark: 100 },
-      { subject: "GitHub", A: components.githubScore, fullMark: 100 },
-      { subject: "Social", A: components.socialScore, fullMark: 100 },
-      { subject: "Identity", A: components.identityScore, fullMark: 100 },
-      { subject: "Activity", A: components.activityScore, fullMark: 100 },
-      { subject: "Security", A: components.securityScore, fullMark: 100 },
-    ];
-  };
+      { subject: 'Wallet', A: components.walletScore, fullMark: 100 },
+      { subject: 'GitHub', A: components.githubScore, fullMark: 100 },
+      { subject: 'Social', A: components.socialScore, fullMark: 100 },
+      { subject: 'Identity', A: components.identityScore, fullMark: 100 },
+      { subject: 'Activity', A: components.activityScore, fullMark: 100 },
+      { subject: 'Security', A: components.securityScore, fullMark: 100 },
+    ]
+  }
 
   const monthlyTrend = [
     { month: "Jan", score: 720, verified: 680 },
@@ -201,7 +170,7 @@ export default function ReputationView() {
     { month: "Apr", score: 782, verified: 750 },
     { month: "May", score: 795, verified: 765 },
     { month: "Jun", score: reputationData?.totalScore || 800, verified: reputationData?.totalScore || 780 },
-  ];
+  ]
 
   if (isLoading) {
     return (
@@ -209,32 +178,33 @@ export default function ReputationView() {
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map(i => (
+            {[1, 2, 3].map((i) => (
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
             ))}
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   if (!reputationData) {
     return (
       <div className="text-center py-12">
+        {/* @ts-ignore */}
         <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">No Reputation Data</h3>
         <p className="text-gray-500 mb-4">Connect your wallet to generate your reputation score</p>
         {address && (
           <Button onClick={handleRefreshReputation} disabled={isUpdating}>
-            {isUpdating ? "Generating..." : "Generate Reputation Score"}
+            {isUpdating ? 'Generating...' : 'Generate Reputation Score'}
           </Button>
         )}
       </div>
-    );
+    )
   }
 
-  const scoreBreakdown = getScoreBreakdown();
-  const radarData = getRadarData();
+  const scoreBreakdown = getScoreBreakdown()
+  const radarData = getRadarData()
 
   const CredentialModal = () => (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -252,6 +222,7 @@ export default function ReputationView() {
               onClick={() => setShowCredentialPreview(false)}
               className="text-gray-400 hover:text-white"
             >
+              {/* @ts-ignore */}
               <X className="h-5 w-5" />
             </Button>
           </div>
@@ -265,6 +236,7 @@ export default function ReputationView() {
             <div className="relative text-center mb-8">
               <div className="flex items-center justify-center mb-4">
                 <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-purple-500 rounded-full flex items-center justify-center">
+                  {/* @ts-ignore */}
                   <Shield className="h-8 w-8 text-white" />
                 </div>
               </div>
@@ -297,15 +269,11 @@ export default function ReputationView() {
                 </div>
                 <div>
                   <span className="text-gray-400">Valid Until:</span>
-                  <span className="text-white ml-2">
-                    {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
-                  </span>
+                  <span className="text-white ml-2">{new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}</span>
                 </div>
                 <div>
                   <span className="text-gray-400">Wallet:</span>
-                  <span className="text-white ml-2 font-mono">
-                    {address?.slice(0, 6)}...{address?.slice(-4)}
-                  </span>
+                  <span className="text-white ml-2 font-mono">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
                 </div>
                 <div>
                   <span className="text-gray-400">Blockchain:</span>
@@ -316,6 +284,7 @@ export default function ReputationView() {
 
             <div className="absolute top-4 right-4">
               <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center">
+                {/* @ts-ignore */}
                 <QrCode className="h-10 w-10 text-gray-900" />
               </div>
             </div>
@@ -329,6 +298,7 @@ export default function ReputationView() {
                   variant="outline"
                   className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
                 >
+                  {/* @ts-ignore */}
                   <Share className="h-4 w-4 mr-2" />
                   Share
                 </Button>
@@ -336,6 +306,7 @@ export default function ReputationView() {
                   onClick={() => setCredentialType("export")}
                   className="flex-1 bg-gradient-to-r from-teal-500 to-purple-500 hover:from-teal-600 hover:to-purple-600"
                 >
+                  {/* @ts-ignore */}
                   <Download className="h-4 w-4 mr-2" />
                   Export
                 </Button>
@@ -352,19 +323,23 @@ export default function ReputationView() {
                     className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white"
                   />
                   <Button variant="outline" className="border-gray-600 bg-transparent">
+                    {/* @ts-ignore */}
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1 border-gray-600 bg-transparent">
+                    {/* @ts-ignore */}
                     <ExternalLink className="h-4 w-4 mr-2" />
                     LinkedIn
                   </Button>
                   <Button variant="outline" className="flex-1 border-gray-600 bg-transparent">
+                    {/* @ts-ignore */}
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Twitter
                   </Button>
                   <Button variant="outline" className="flex-1 border-gray-600 bg-transparent">
+                    {/* @ts-ignore */}
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Discord
                   </Button>
@@ -375,18 +350,22 @@ export default function ReputationView() {
             {credentialType === "export" && (
               <div className="w-full space-y-3">
                 <Button className="w-full bg-gray-700 hover:bg-gray-600">
+                  {/* @ts-ignore */}
                   <Download className="h-4 w-4 mr-2" />
                   Download as PDF
                 </Button>
                 <Button variant="outline" className="w-full border-gray-600 bg-transparent">
+                  {/* @ts-ignore */}
                   <Download className="h-4 w-4 mr-2" />
                   Download as PNG
                 </Button>
                 <Button variant="outline" className="w-full border-gray-600 bg-transparent">
+                  {/* @ts-ignore */}
                   <Download className="h-4 w-4 mr-2" />
                   Download as JSON
                 </Button>
                 <Button variant="outline" className="w-full border-gray-600 bg-transparent">
+                  {/* @ts-ignore */}
                   <Download className="h-4 w-4 mr-2" />
                   Export to IPFS
                 </Button>
@@ -396,7 +375,7 @@ export default function ReputationView() {
         </div>
       </div>
     </div>
-  );
+  )
 
   return (
     <div className="space-y-8">
@@ -412,10 +391,11 @@ export default function ReputationView() {
             variant="outline"
             className="border-gray-600 text-gray-300 hover:bg-gray-800 bg-transparent hover:border-teal-500/50"
             onClick={() => {
-              setCredentialType("preview");
-              setShowCredentialPreview(true);
+              setCredentialType("preview")
+              setShowCredentialPreview(true)
             }}
           >
+            {/* @ts-ignore */}
             <Eye className="h-4 w-4 mr-2" />
             Preview
           </Button>
@@ -423,20 +403,22 @@ export default function ReputationView() {
             variant="outline"
             className="border-gray-600 text-gray-300 hover:bg-gray-800 bg-transparent hover:border-purple-500/50"
             onClick={() => {
-              setCredentialType("share");
-              setShowCredentialPreview(true);
+              setCredentialType("share")
+              setShowCredentialPreview(true)
             }}
           >
+            {/* @ts-ignore */}
             <Share className="h-4 w-4 mr-2" />
             Share
           </Button>
           <Button
             className="bg-gradient-to-r from-teal-500 to-purple-500 hover:from-teal-600 hover:to-purple-600"
             onClick={() => {
-              setCredentialType("export");
-              setShowCredentialPreview(true);
+              setCredentialType("export")
+              setShowCredentialPreview(true)
             }}
           >
+            {/* @ts-ignore */}
             <Download className="h-4 w-4 mr-2" />
             Export Credential
           </Button>
@@ -455,19 +437,17 @@ export default function ReputationView() {
                   {reputationData.totalScore}
                 </div>
                 <div className="flex items-center justify-center gap-2 text-gray-400">
+                  {/* @ts-ignore */}
                   <TrendingUp className="h-4 w-4 text-green-400" />
                   <span>Percentile: {reputationData.insights.percentile}th</span>
                 </div>
-                <Badge
-                  variant="secondary"
+                <Badge 
+                  variant="secondary" 
                   className={`text-sm px-4 py-1 ${
-                    reputationData.insights.trustLevel === "Excellent"
-                      ? "bg-green-500/20 text-green-400 border-green-500/30"
-                      : reputationData.insights.trustLevel === "High"
-                        ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                        : reputationData.insights.trustLevel === "Medium"
-                          ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                          : "bg-red-500/20 text-red-400 border-red-500/30"
+                    reputationData.insights.trustLevel === 'Excellent' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                    reputationData.insights.trustLevel === 'High' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                    reputationData.insights.trustLevel === 'Medium' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                    'bg-red-500/20 text-red-400 border-red-500/30'
                   }`}
                 >
                   {reputationData.insights.trustLevel} Trust Level
@@ -480,6 +460,7 @@ export default function ReputationView() {
                   <div className="space-y-2">
                     {reputationData.insights.strengths.slice(0, 3).map((strength, index) => (
                       <div key={index} className="flex items-center gap-2 text-green-400">
+                        {/* @ts-ignore */}
                         <CheckCircle className="h-4 w-4" />
                         <span className="text-sm">{strength}</span>
                       </div>
@@ -491,6 +472,7 @@ export default function ReputationView() {
                   <div className="space-y-2">
                     {reputationData.insights.improvements.slice(0, 3).map((improvement, index) => (
                       <div key={index} className="flex items-center gap-2 text-yellow-400">
+                        {/* @ts-ignore */}
                         <Clock className="h-4 w-4" />
                         <span className="text-sm">{improvement}</span>
                       </div>
@@ -516,45 +498,41 @@ export default function ReputationView() {
                 {isUpdating ? (
                   <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" />
                 ) : (
-                  "Refresh"
+                  'Refresh'
                 )}
               </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* GitHub Connection Status */}
-            {!githubConnected ? (
+            {!getStoredGitHubData() ? (
               <div className="p-4 border border-gray-600 rounded-lg bg-gray-800/30">
                 <div className="flex items-center gap-3 mb-2">
+                  {/* @ts-ignore */}
                   <Github className="h-5 w-5 text-gray-400" />
                   <span className="text-sm font-medium text-white">Connect GitHub</span>
                 </div>
-                <p className="text-xs text-gray-400 mb-3">Boost your reputation by connecting your GitHub profile</p>
-                <Button 
-                  size="sm" 
-                  onClick={connectGitHub} 
-                  disabled={isConnectingGitHub}
-                  className="w-full bg-gray-700 hover:bg-gray-600 text-white disabled:opacity-50"
+                <p className="text-xs text-gray-400 mb-3">
+                  Boost your reputation by connecting your GitHub profile
+                </p>
+                <Button
+                  size="sm"
+                  onClick={connectGitHub}
+                  className="w-full bg-gray-700 hover:bg-gray-600 text-white"
                 >
-                  {isConnectingGitHub ? 'Connecting...' : 'Connect GitHub'}
+                  Connect GitHub
                 </Button>
               </div>
             ) : (
               <div className="p-4 border border-green-600/30 rounded-lg bg-green-500/10">
                 <div className="flex items-center gap-3 mb-2">
+                  {/* @ts-ignore */}
                   <Github className="h-5 w-5 text-green-400" />
                   <span className="text-sm font-medium text-white">GitHub Connected</span>
-                  <CheckCircle className="h-4 w-4 text-green-400" />
                 </div>
-                <p className="text-xs text-gray-400">Contributing to your reputation score</p>
-                <Button 
-                  size="sm" 
-                  onClick={handleRefreshReputation}
-                  disabled={isUpdating}
-                  className="w-full mt-2 bg-green-700 hover:bg-green-600 text-white"
-                >
-                  {isUpdating ? 'Updating...' : 'Refresh Data'}
-                </Button>
+                <p className="text-xs text-gray-400">
+                  Contributing to your reputation score
+                </p>
               </div>
             )}
 
@@ -564,6 +542,7 @@ export default function ReputationView() {
               <div className="space-y-2">
                 {reputationData.insights.nextMilestones.slice(0, 3).map((milestone, index) => (
                   <div key={index} className="flex items-center gap-2 text-blue-400">
+                    {/* @ts-ignore */}
                     <Award className="h-4 w-4" />
                     <span className="text-xs">{milestone}</span>
                   </div>
@@ -584,7 +563,7 @@ export default function ReputationView() {
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={radarData}>
                   <PolarGrid stroke="#374151" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: "#D1D5DB", fontSize: 12 }} />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: "#D1D5DB", fontSize: 12 }} reversed={false} scale="auto" />
                   <PolarRadiusAxis tick={{ fill: "#9CA3AF", fontSize: 10 }} />
                   <Radar name="Current" dataKey="A" stroke="#14B8A6" fill="#14B8A6" fillOpacity={0.3} strokeWidth={2} />
                   <Radar
@@ -627,11 +606,12 @@ export default function ReputationView() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {scoreBreakdown.map((item, index) => {
-              const IconComponent = item.icon;
+              const IconComponent = item.icon
               return (
                 <div key={index} className="p-4 rounded-xl bg-gray-800/40 border border-gray-700/50">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
+                      {/* @ts-ignore */}
                       <IconComponent className="h-5 w-5" style={{ color: item.color }} />
                       <h3 className="text-white font-medium">{item.category}</h3>
                     </div>
@@ -650,7 +630,7 @@ export default function ReputationView() {
                     <div className="text-xs text-gray-400">+{item.potential - item.current} points available</div>
                   </div>
                 </div>
-              );
+              )
             })}
           </div>
         </CardContent>
@@ -663,10 +643,11 @@ export default function ReputationView() {
           </CardHeader>
           <CardContent className="space-y-4">
             {ON_CHAIN_ACTIVITIES.map((activity, index) => {
-              const Icon = activity.icon;
+              const Icon = activity.icon
               return (
                 <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-gray-800/30">
                   <div className="flex items-center gap-3">
+                    {/* @ts-ignore */}
                     <Icon className="h-5 w-5 text-teal-400" />
                     <div>
                       <p className="text-white font-medium">{activity.activity}</p>
@@ -675,10 +656,11 @@ export default function ReputationView() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-white font-bold">{activity.score}</span>
+                    {/* @ts-ignore */}
                     {activity.verified && <CheckCircle className="h-4 w-4 text-green-400" />}
                   </div>
                 </div>
-              );
+              )
             })}
           </CardContent>
         </Card>
@@ -689,10 +671,11 @@ export default function ReputationView() {
           </CardHeader>
           <CardContent className="space-y-4">
             {OFF_CHAIN_ACTIVITIES.map((activity, index) => {
-              const Icon = activity.icon;
+              const Icon = activity.icon
               return (
                 <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-gray-800/30">
                   <div className="flex items-center gap-3">
+                    {/* @ts-ignore */}
                     <Icon className="h-5 w-5 text-purple-400" />
                     <div>
                       <p className="text-white font-medium">{activity.activity}</p>
@@ -701,14 +684,15 @@ export default function ReputationView() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-white font-bold">{activity.score}</span>
+                    {/* @ts-ignore */}
                     {activity.verified && <CheckCircle className="h-4 w-4 text-green-400" />}
                   </div>
                 </div>
-              );
+              )
             })}
           </CardContent>
         </Card>
       </div>
     </div>
-  );
+  )
 }

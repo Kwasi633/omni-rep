@@ -1,0 +1,28 @@
+# Node
+node_modules/
+*/node_modules/
+packages/*/node_modules/
+
+# Next.js
+.next/
+out/
+*.tsbuildinfo
+
+# Hardhat
+artifacts/
+cache/
+typechain-types/
+
+# Yarn
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+.yarnrc.yml
+.yarn/install-state.gz
+
+# Logs & env
+*.log
+.env
+.env.local

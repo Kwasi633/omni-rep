@@ -362,4 +362,9 @@ MIT License - Open source for community building
 
 ---
 
+## 📹 Video Demo  
+
+[Watch the Demo](https://drive.google.com/file/d/1pu4c3WApbc37Rc70H0DANFxFC74zM5ob/view?usp=sharing)
+
+
 **Built with ❤️ for Africa's Web3 Future**

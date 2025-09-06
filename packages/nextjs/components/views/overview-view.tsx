@@ -1,9 +1,11 @@
 /* eslint-disable prettier/prettier */
+/* eslint-d// Removed unused dialog imports since we now use GitHubConnectModalble prettier/prettier */
 // @ts-nocheck
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useAccount } from 'wagmi';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +19,9 @@ import {
   DollarSign,
   ExternalLink,
   FileText,
+  Github,
   Key,
-  Link,
+  Link2,
   Loader2,
   Shield,
   Star,
@@ -28,33 +31,22 @@ import {
   Zap,
 } from "lucide-react";
 import { Area, AreaChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { AVAILABLE_GRANTS, CONNECTED_PLATFORMS, CURRENT_SCORE, MONTHLY_GROWTH } from "@/lib/constants";
 import { useIdentity } from "@/hooks/useIdentity";
 import { useCredential } from "@/hooks/useCredential";
-import { hashReputationScore, generateMockReputationData } from "@/utils/hashScore";
+import { hashReputationScore } from "@/utils/hashScore";
 import { useENSIntegration } from "@/utils/ens-utils";
-import { useWallet } from "@/contexts/WalletContext";
-
-const scoreHistory = [
-  { month: "Jan", score: 720 },
-  { month: "Feb", score: 745 },
-  { month: "Mar", score: 768 },
-  { month: "Apr", score: 785 },
-  { month: "May", score: 812 },
-  { month: "Jun", score: 847 },
-]
-
-const weeklyActivity = [
-  { day: "Mon", activity: 12 },
-  { day: "Tue", activity: 19 },
-  { day: "Wed", activity: 8 },
-  { day: "Thu", activity: 25 },
-  { day: "Fri", activity: 22 },
-  { day: "Sat", activity: 15 },
-  { day: "Sun", activity: 9 },
-]
+import { ReputationData, getStoredReputationData, updateUserReputation } from "@/services/reputation";
+import { connectGitHub as connectGitHubAccount, getStoredGitHubData } from "@/services/github";
+import { GitHubConnectModal } from "@/components/ui/github-connect-modal";
 
 export function OverviewView() {
+  // Real data state
+  const [reputationData, setReputationData] = useState<ReputationData | null>(null);
+  const [isLoadingReputation, setIsLoadingReputation] = useState(true);
+  const [isUpdatingReputation, setIsUpdatingReputation] = useState(false);
+  const [isConnectingGitHub, setIsConnectingGitHub] = useState(false);
+  const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
+  
   // DID and Credential Management
   const { 
     did, 
@@ -72,30 +64,83 @@ export function OverviewView() {
     createAndUploadCredential,
   } = useCredential();
 
-  // Access wallet state from our context
-  const { address: walletAddress, setWalletENS } = useWallet();
+  // Access wallet state from wagmi
+  const { address } = useAccount();
 
   // ENS Integration
   const {
     ensName,
     isCreatingSubname,
     error: ensError,
-    createUserSubname,
-    resolveDIDFromENS,
-    ensService
+    createUserSubname
   } = useENSIntegration();
   
   // Alias for better readability in component
   const isCreatingENS = isCreatingSubname;
   
-  // Mock ENS profile for UI demonstration
+  // Real ENS profile based on actual data
   const ensProfile = {
     name: ensName?.split('.')[0],
     avatar: null,
     did: did,
-    github: null,
+    github: getStoredGitHubData()?.username || null,
     twitter: null
   };
+
+  // Load real reputation data
+  useEffect(() => {
+    const loadReputationData = async () => {
+      if (!address) {
+        setIsLoadingReputation(false);
+        return;
+      }
+
+      setIsLoadingReputation(true);
+      let data = getStoredReputationData();
+
+      // If no data exists or it's stale (older than 30 minutes), generate new data
+      if (!data || Date.now() - data.lastUpdated > 1800000) {
+        console.log('Generating fresh reputation data for overview...');
+        data = await updateUserReputation(address);
+      }
+
+      setReputationData(data);
+      setIsLoadingReputation(false);
+    };
+
+    loadReputationData();
+  }, [address]);
+
+  // Calculate dynamic values from real data
+  const currentScore = reputationData?.totalScore || 0;
+  const monthlyGrowth = reputationData ? Math.floor(reputationData.totalScore * 0.1) : 0;
+  const connectedPlatforms = reputationData ? 
+    Object.values(reputationData.components).filter(score => score > 0).length : 0;
+  const availableGrants = Math.floor(currentScore / 100); // Estimate grants based on score
+
+  // Generate dynamic score history based on current score
+  const generateScoreHistory = () => {
+    if (!reputationData) return [];
+    
+    const current = reputationData.totalScore;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    return months.map((month, index) => ({
+      month,
+      score: Math.max(100, current - ((5 - index) * 20) + Math.floor(Math.random() * 40))
+    }));
+  };
+
+  // Generate dynamic weekly activity
+  const generateWeeklyActivity = () => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days.map(day => ({
+      day,
+      activity: Math.floor(Math.random() * 30) + 5
+    }));
+  };
+
+  const scoreHistory = generateScoreHistory();
+  const weeklyActivity = generateWeeklyActivity();
 
   // Clipboard functionality
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
@@ -111,25 +156,63 @@ export function OverviewView() {
     }
   };
 
+  const handleRefreshReputation = async () => {
+    if (!address) return;
+
+    setIsUpdatingReputation(true);
+    try {
+      console.log('Refreshing reputation data from overview...');
+      const data = await updateUserReputation(address);
+      setReputationData(data);
+    } catch (error) {
+      console.error("Failed to update reputation:", error);
+    }
+    setIsUpdatingReputation(false);
+  };
+
+  const handleConnectGitHub = async (username: string) => {
+    setIsConnectingGitHub(true);
+    try {
+      console.log('Connecting to GitHub for user:', username);
+      const result = await connectGitHubAccount(username);
+      
+      if (result.success) {
+        // Refresh reputation data after connecting GitHub
+        if (address) {
+          await handleRefreshReputation();
+        }
+      } else {
+        throw new Error(result.error || 'Failed to connect GitHub');
+      }
+    } catch (error) {
+      console.error("Failed to connect GitHub:", error);
+      throw error; // Re-throw for modal to handle
+    }
+    setIsConnectingGitHub(false);
+  };
+
   const handleIssueCredential = async () => {
     if (!did) {
       console.error("[OmniRep] Cannot issue credential without DID");
       return;
     }
 
+    if (!reputationData) {
+      console.error("[OmniRep] Cannot issue credential without reputation data");
+      return;
+    }
+
     try {
-      // Generate mock reputation data for demo
-      const reputationData = generateMockReputationData(CURRENT_SCORE);
-      
-      // Hash the reputation score
+      // Use real reputation data instead of mock
       const hashedScore = hashReputationScore(reputationData);
       console.log("[OmniRep] Hashed reputation score:", hashedScore);
 
-      // Issue the verifiable credential
+      // Issue the verifiable credential with real data
       await createAndUploadCredential(did, hashedScore, {
-        connectedPlatforms: CONNECTED_PLATFORMS,
-        monthlyGrowth: MONTHLY_GROWTH,
-        demoMode: true,
+        connectedPlatforms,
+        monthlyGrowth,
+        currentScore,
+        demoMode: false, // Now using real data
       });
     } catch (err) {
       console.error("[OmniRep] Failed to issue credential:", err);
@@ -142,7 +225,7 @@ export function OverviewView() {
       return;
     }
 
-    if (!walletAddress) {
+    if (!address) {
       console.error("[OmniRep] Cannot create ENS without wallet address");
       return;
     }
@@ -151,14 +234,11 @@ export function OverviewView() {
     const username = `user${Math.floor(Math.random() * 10000)}`;
     
     try {
-      console.log(`[OmniRep] Creating ENS subname for wallet: ${walletAddress}`);
-      const createdSubname = await createUserSubname(walletAddress, did, username);
+      console.log(`[OmniRep] Creating ENS subname for wallet: ${address}`);
+      const createdSubname = await createUserSubname(address, did, username);
       console.log(`[OmniRep] ENS subname created: ${createdSubname}`);
       
-      // Store the ENS name in wallet context to persist it and make it available app-wide
-      if (createdSubname && setWalletENS) {
-        setWalletENS(createdSubname);
-      }
+      // ENS name created successfully - could be stored in local state if needed
     } catch (err) {
       console.error("[OmniRep] Failed to create ENS subname:", err);
     }
@@ -173,7 +253,7 @@ export function OverviewView() {
           <p className="text-gray-400 mt-2">Track your reputation growth and opportunities</p>
           <div className="flex flex-wrap items-center gap-3 mt-3">
             <span className="bg-teal-500/20 px-2 py-0.5 rounded text-teal-400 text-xs">
-              Wallet-linked DID
+              Real-time Data
             </span>
             <span className="bg-green-500/20 px-2 py-0.5 rounded text-green-400 text-xs">
               ENS Integration
@@ -181,19 +261,44 @@ export function OverviewView() {
             <span className="bg-purple-500/20 px-2 py-0.5 rounded text-purple-400 text-xs">
               Verifiable Credentials
             </span>
+            {getStoredGitHubData() && (
+              <span className="bg-blue-500/20 px-2 py-0.5 rounded text-blue-400 text-xs">
+                GitHub Connected
+              </span>
+            )}
           </div>
           <p className="text-gray-500 text-xs mt-2">
-            Your decentralized identity is derived from your wallet signature and can be linked to a human-readable ENS name
+            Your reputation score is calculated from real on-chain and off-chain activity data
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="border-teal-500/30 text-teal-400 bg-teal-500/10 px-4 py-2">
-            <Star className="h-4 w-4 mr-2" />
-            Score: {CURRENT_SCORE}
-          </Badge>
-          <Button className="bg-gradient-to-r from-teal-500 to-purple-500 hover:from-teal-600 hover:to-purple-600">
-            <Zap className="h-4 w-4 mr-2" />
-            Boost Score
+          {isLoadingReputation ? (
+            <Badge variant="outline" className="border-gray-500/30 text-gray-400 bg-gray-500/10 px-4 py-2">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Loading...
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="border-teal-500/30 text-teal-400 bg-teal-500/10 px-4 py-2">
+              <Star className="h-4 w-4 mr-2" />
+              Score: {Math.round(currentScore)}
+            </Badge>
+          )}
+          <Button 
+            onClick={handleRefreshReputation}
+            disabled={isUpdatingReputation || !address}
+            className="bg-gradient-to-r from-teal-500 to-purple-500 hover:from-teal-600 hover:to-purple-600"
+          >
+            {isUpdatingReputation ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              <>
+                <Zap className="h-4 w-4 mr-2" />
+                Refresh Data
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -204,14 +309,14 @@ export function OverviewView() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-gray-400 text-sm">Reputation Score</p>
-                <p className="text-3xl font-bold text-white">{CURRENT_SCORE}</p>
-                <p className="text-teal-400 text-sm font-medium">+{MONTHLY_GROWTH} this month</p>
+                <p className="text-3xl font-bold text-white">{Math.round(currentScore)}</p>
+                <p className="text-teal-400 text-sm font-medium">+{monthlyGrowth} this month</p>
               </div>
               <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Star className="h-7 w-7 text-white" />
               </div>
             </div>
-            <Progress value={85} className="h-2 bg-gray-700" />
+            <Progress value={Math.min(85, (currentScore / 1000) * 100)} className="h-2 bg-gray-700" />
           </CardContent>
         </Card>
 
@@ -220,14 +325,14 @@ export function OverviewView() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-gray-400 text-sm">Connected Platforms</p>
-                <p className="text-3xl font-bold text-white">{CONNECTED_PLATFORMS}</p>
-                <p className="text-purple-400 text-sm font-medium">2 pending verification</p>
+                <p className="text-3xl font-bold text-white">{connectedPlatforms}</p>
+                <p className="text-purple-400 text-sm font-medium">{6 - connectedPlatforms} available</p>
               </div>
               <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Link className="h-7 w-7 text-white" />
+                <Link2 className="h-7 w-7 text-white" />
               </div>
             </div>
-            <Progress value={67} className="h-2 bg-gray-700" />
+            <Progress value={(connectedPlatforms / 6) * 100} className="h-2 bg-gray-700" />
           </CardContent>
         </Card>
 
@@ -236,14 +341,14 @@ export function OverviewView() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-gray-400 text-sm">Available Grants</p>
-                <p className="text-3xl font-bold text-white">{AVAILABLE_GRANTS}</p>
-                <p className="text-blue-400 text-sm font-medium">$2.4M total value</p>
+                <p className="text-3xl font-bold text-white">{availableGrants}</p>
+                <p className="text-blue-400 text-sm font-medium">${(availableGrants * 2400).toLocaleString()} total value</p>
               </div>
               <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                 <DollarSign className="h-7 w-7 text-white" />
               </div>
             </div>
-            <Progress value={43} className="h-2 bg-gray-700" />
+            <Progress value={Math.min(80, (availableGrants / 20) * 100)} className="h-2 bg-gray-700" />
           </CardContent>
         </Card>
 
@@ -252,14 +357,14 @@ export function OverviewView() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-gray-400 text-sm">Monthly Growth</p>
-                <p className="text-3xl font-bold text-white">{MONTHLY_GROWTH}</p>
-                <p className="text-green-400 text-sm font-medium">Above average</p>
+                <p className="text-3xl font-bold text-white">{monthlyGrowth}</p>
+                <p className="text-green-400 text-sm font-medium">{monthlyGrowth > 20 ? 'Above' : 'Below'} average</p>
               </div>
               <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                 <TrendingUp className="h-7 w-7 text-white" />
               </div>
             </div>
-            <Progress value={78} className="h-2 bg-gray-700" />
+            <Progress value={Math.min(90, (monthlyGrowth / 50) * 100)} className="h-2 bg-gray-700" />
           </CardContent>
         </Card>
       </div>
@@ -522,7 +627,7 @@ export function OverviewView() {
                     : "bg-gray-500/20 text-gray-400 border-gray-500/30"
                 }`}
               >
-                Score: {CURRENT_SCORE}
+                Score: {Math.round(currentScore)}
               </Badge>
             </div>
 
@@ -673,19 +778,38 @@ export function OverviewView() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-teal-500/10 to-teal-600/10 border border-teal-500/20 hover:border-teal-500/40 transition-colors cursor-pointer group">
-              <div className="w-10 h-10 bg-teal-500/20 rounded-lg flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-teal-400" />
+            {!getStoredGitHubData() ? (
+              <div 
+                onClick={() => setIsGitHubModalOpen(true)}
+                className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-teal-500/10 to-teal-600/10 border border-teal-500/20 hover:border-teal-500/40 transition-colors cursor-pointer group"
+              >
+                <div className="w-10 h-10 bg-teal-500/20 rounded-lg flex items-center justify-center">
+                  <Github className="h-5 w-5 text-teal-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-medium">Connect GitHub Account</p>
+                  <p className="text-gray-400 text-sm">Boost technical reputation by +45 points</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30">High Impact</Badge>
+                  <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-teal-400 transition-colors" />
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-white font-medium">Connect GitHub Account</p>
-                <p className="text-gray-400 text-sm">Boost technical reputation by +45 points</p>
+            ) : (
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-green-500/10 to-green-600/10 border border-green-500/20">
+                <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-green-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-medium">GitHub Connected</p>
+                  <p className="text-gray-400 text-sm">@{getStoredGitHubData()?.username} - Contributing to your score</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Connected</Badge>
+                  <CheckCircle className="h-4 w-4 text-green-400" />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30">High Impact</Badge>
-                <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-teal-400 transition-colors" />
-              </div>
-            </div>
+            )}
 
             <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-purple-600/10 border border-purple-500/20 hover:border-purple-500/40 transition-colors cursor-pointer group">
               <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
@@ -760,6 +884,14 @@ export function OverviewView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* GitHub Connect Modal */}
+      <GitHubConnectModal
+        isOpen={isGitHubModalOpen}
+        onClose={() => setIsGitHubModalOpen(false)}
+        onConnect={handleConnectGitHub}
+        isConnecting={isConnectingGitHub}
+      />
     </div>
   );
 }

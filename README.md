@@ -8,7 +8,7 @@
 
 ---
 
-## 📌 Short Description (280 Characters)
+## 📌 Short Description
 
 OmniRep is a decentralized reputation protocol that aggregates cross-platform activity into verifiable on-chain credentials, enabling users to build portable digital identity across Web3 ecosystems using ENS, DIDs, and real-time data analytics.
 
